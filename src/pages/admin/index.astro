@@ -1,0 +1,632 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Sidebar from '../../components/Sidebar.astro';
+import AdminSection from '../../components/AdminSection.astro';
+import SchedulerSection from '../../components/SchedulerSection.astro';
+---
+
+<AdminLayout title="FoxESS Scheduler">
+  <Sidebar />
+
+  <main class="md:ml-[220px] pt-[52px] md:pt-0 px-4 sm:px-6 md:px-10 py-6 md:py-10 max-w-[1020px]">
+    <AdminSection />
+    <SchedulerSection />
+  </main>
+</AdminLayout>
+
+<style is:global>
+  /* Section visibility toggled by JS */
+  .section { display: none; }
+  .section.active { display: block; }
+</style>
+
+<script>
+// =============================================================================
+// FoxESS Scheduler — Admin UI
+// Vanilla JS, no framework. Data is fetched/saved via /api/* Worker routes.
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+/** Inverter serial number populated from the first successful verify-connection. */
+let inverterSn        = '';
+/** SchedulerConfig loaded live from inverter */
+let schedulerConfig   = null;
+let schedulerDirty    = false;
+let editingGroupIdx   = null;
+
+const SCHEDULER_CACHE_KEY = 'foxess_scheduler_cache';
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+function $(id) { return document.getElementById(id); }
+
+function toast(message, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = message;
+  $('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+function fmtTime(h, m) { return `${pad(h)}:${pad(m)}`; }
+
+// ---------------------------------------------------------------------------
+// API helpers
+// ---------------------------------------------------------------------------
+async function apiGet(path) {
+  try {
+    const res = await fetch(path);
+    return res.json();
+  } catch {
+    return { ok: false, error: 'Network error — check your connection' };
+  }
+}
+
+async function apiPost(path, data) {
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  } catch {
+    return { ok: false, error: 'Network error — check your connection' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------------------
+function initNav() {
+  document.querySelectorAll('.nav-item[data-section]').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const id = link.dataset.section;
+      document.querySelectorAll('.nav-item').forEach(l => l.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      link.classList.add('active');
+      document.getElementById(id)?.classList.add('active');
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Auth status section
+// ---------------------------------------------------------------------------
+
+/** Show the "not connected" or "connected" state in the admin section. */
+function renderAuthState(connected, sn) {
+  $('auth-checking').style.display     = 'none';
+  $('auth-disconnected').style.display = connected ? 'none' : '';
+  $('auth-connected').style.display    = connected ? ''     : 'none';
+  if (connected && sn) {
+    $('auth-sn').textContent = sn;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Storage helpers
+// The session cookie is HttpOnly and managed entirely by the Worker.
+// We only keep the (non-sensitive) device SN in localStorage for form pre-fill.
+// ---------------------------------------------------------------------------
+const LS_SN = 'foxess_sn';
+
+function initAuthSection() {
+  // Pre-fill the SN field from localStorage (non-sensitive convenience).
+  // The API key is never stored in the browser — it lives only in the
+  // encrypted HttpOnly session cookie managed by the Worker.
+  const apiKeyInput = /** @type {HTMLInputElement} */ ($('cfg-api-key'));
+  const snInput     = /** @type {HTMLInputElement} */ ($('cfg-sn'));
+  const savedSn     = localStorage.getItem(LS_SN) ?? '';
+  if (snInput && savedSn) snInput.value = savedSn;
+
+  // Show / Hide toggle for API key
+  $('btn-toggle-api-key')?.addEventListener('click', () => {
+    const btn = $('btn-toggle-api-key');
+    if (apiKeyInput.type === 'password') {
+      apiKeyInput.type = 'text';
+      btn.textContent  = 'Hide';
+    } else {
+      apiKeyInput.type = 'password';
+      btn.textContent  = 'Show';
+    }
+  });
+
+  // Connect form submit
+  $('connect-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const api_key = apiKeyInput?.value.trim()          ?? '';
+    const sn      = snInput?.value.trim().toUpperCase() ?? '';
+
+    if (!api_key || !sn) {
+      toast('API key and Serial Number are required', 'error');
+      return;
+    }
+
+    const btn = $('btn-connect');
+    btn.textContent = 'Verifying…';
+    btn.setAttribute('disabled', 'disabled');
+
+    try {
+      const res  = await fetch('/api/auth/connect', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ api_key, sn }),
+      });
+      const data = await res.json();
+
+      if (data?.ok) {
+        // Session cookie is set by the Worker in the response headers (HttpOnly).
+        // Only the non-sensitive SN is kept in localStorage for form pre-fill.
+        localStorage.setItem(LS_SN, sn);
+        window.location.reload();
+      } else {
+        toast(data?.error ?? 'Connection failed', 'error');
+        btn.textContent = 'Save & Connect';
+        btn.removeAttribute('disabled');
+      }
+    } catch {
+      toast('Request failed — check your network', 'error');
+      btn.textContent = 'Save & Connect';
+      btn.removeAttribute('disabled');
+    }
+  });
+
+  // Disconnect — the Worker clears the HttpOnly cookie server-side
+  $('btn-disconnect')?.addEventListener('click', async () => {
+    if (!confirm('Disconnect? You will need to re-enter your API key to reconnect.')) return;
+    await fetch('/api/auth/disconnect', { method: 'POST' });
+    localStorage.removeItem(SCHEDULER_CACHE_KEY);
+    window.location.reload();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Device detail
+// ---------------------------------------------------------------------------
+function renderDeviceDetail(data) {
+  const strip = $('device-detail');
+  if (!data) { strip.style.display = 'none'; return; }
+  $('device-type').textContent = data.deviceType || '—';
+  $('device-fw').textContent   = data.masterVersion || '—';
+  if (data.batteryModel) {
+    $('device-bat').textContent             = data.batteryModel;
+    $('device-bat-label').style.display     = '';
+    $('device-bat-separator').style.display = '';
+  } else {
+    $('device-bat-label').style.display     = 'none';
+    $('device-bat-separator').style.display = 'none';
+  }
+  strip.style.display = '';
+}
+
+async function loadDeviceDetail() {
+  const result = await apiGet('/api/device-detail');
+  if (result.ok) renderDeviceDetail(result.data);
+  // Silently ignore errors — device detail is non-critical
+}
+
+// ---------------------------------------------------------------------------
+// Connection verification
+// ---------------------------------------------------------------------------
+async function verifyConnection() {
+  const panel       = $('connection-status');
+  const refreshBtn  = $('btn-verify-refresh');
+  const refreshIcon = $('conn-refresh-icon');
+
+  panel.style.display = '';
+  refreshBtn.disabled = true;
+  refreshIcon.classList.add('spin');
+
+  $('conn-icon').textContent  = '○';
+  $('conn-icon').className    = 'text-base leading-none text-zinc-500';
+  $('conn-title').textContent = 'Checking connection��';
+  $('conn-title').className   = 'text-sm font-semibold text-zinc-400';
+  $('conn-time').textContent  = '';
+  $('conn-soc').textContent      = '…';
+  $('conn-bat-temp').textContent = '…';
+  $('conn-fault').textContent    = '…';
+  $('conn-fault').className      = 'text-sm font-semibold text-zinc-500';
+  $('conn-load').textContent     = '…';
+
+  const result = await apiGet('/api/verify-connection');
+
+  refreshBtn.disabled = false;
+  refreshIcon.classList.remove('spin');
+
+  if (result.ok) {
+    const d = result.data;
+    $('conn-icon').textContent  = '✓';
+    $('conn-icon').className    = 'text-base leading-none text-emerald-400';
+    $('conn-title').textContent = 'Connection verified';
+    $('conn-title').className   = 'text-sm font-semibold text-emerald-400';
+    $('conn-time').textContent  = d.time;
+    $('conn-soc').textContent      = d.soc           != null ? `${d.soc}%`                         : '—';
+    $('conn-bat-temp').textContent = d.batTemperature != null ? `${d.batTemperature}°C`             : '—';
+    $('conn-load').textContent     = d.loadsPower     != null ? `${d.loadsPower.toFixed(2)} kW`     : '—';
+    const hasFault = d.currentFault && d.currentFault !== '';
+    $('conn-fault').textContent = hasFault ? d.currentFault : 'No fault';
+    $('conn-fault').className   = `text-sm font-semibold ${hasFault ? 'text-red-400' : 'text-emerald-400'}`;
+
+    // Expose SN from device response (server populates it from the session)
+    if (d.deviceSN && !inverterSn) {
+      inverterSn = d.deviceSN;
+      renderAuthState(true, inverterSn);
+    }
+  } else {
+    $('conn-icon').textContent  = '✗';
+    $('conn-icon').className    = 'text-base leading-none text-red-400';
+    $('conn-title').textContent = result.error ?? 'Connection failed';
+    $('conn-title').className   = 'text-sm font-semibold text-red-400';
+    $('conn-time').textContent  = '';
+    $('conn-soc').textContent      = '—';
+    $('conn-bat-temp').textContent = '—';
+    $('conn-fault').textContent    = '—';
+    $('conn-fault').className      = 'text-sm font-semibold text-zinc-500';
+    $('conn-load').textContent     = '—';
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler — helpers
+// ---------------------------------------------------------------------------
+const FORCE_MODES = new Set(['ForceCharge', 'ForceDischarge']);
+
+/** The 0:00–23:59 group is the inverter's fallback / default schedule. */
+function isDefaultGroup(g) {
+  return g.startHour === 0 && g.startMinute === 0 && g.endHour === 23 && g.endMinute === 59;
+}
+
+function markDirty() {
+  schedulerDirty = true;
+  $('scheduler-dirty-banner').style.display = '';
+  $('btn-save-scheduler').disabled = false;
+}
+
+function markClean() {
+  schedulerDirty = false;
+  $('scheduler-dirty-banner').style.display = 'none';
+  $('btn-save-scheduler').disabled = true;
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler — render group cards
+// ---------------------------------------------------------------------------
+function buildGroupCard(g, idx, { conflict = false, isDefault = false } = {}) {
+  const isForce = FORCE_MODES.has(g.workMode);
+
+  const modeColour = {
+    SelfUse:        'text-emerald-400',
+    ForceCharge:    'text-blue-400',
+    ForceDischarge: 'text-amber-400',
+    Feedin:         'text-violet-400',
+    Backup:         'text-zinc-400',
+  }[g.workMode] ?? 'text-zinc-400';
+
+  const details = [`export ${g.extraParam.exportLimit.toLocaleString()}W`];
+  if (isForce) {
+    details.push(`fdSoc ${g.extraParam.fdSoc}%`);
+    details.push(`fdPwr ${g.extraParam.fdPwr.toLocaleString()}W`);
+  }
+  details.push(`import ${g.extraParam.importLimit.toLocaleString()}W`);
+
+  // Default group: omit the time range from the card name
+  const timeSpan = isDefault
+    ? ''
+    : `<span class="text-zinc-600 mx-1.5">·</span><span class="font-mono tabular-nums text-zinc-300">${fmtTime(g.startHour, g.startMinute)} → ${fmtTime(g.endHour, g.endMinute)}</span>`;
+
+  const card = document.createElement('div');
+  card.className = 'schedule-card card-scheduled group-card';
+  card.innerHTML = `
+    <div class="schedule-card-meta">
+      <span class="schedule-card-name">
+        <span class="${modeColour} font-semibold">${escapeHtml(g.workMode)}</span>
+        ${timeSpan}
+        ${conflict ? ' <span class="text-amber-400 text-xs font-semibold ml-1" title="Time conflict with another group">⚠ conflict</span>' : ''}
+      </span>
+      <span class="schedule-card-detail">${details.join(' · ')}</span>
+    </div>
+    <div class="schedule-card-actions">
+      <button class="btn btn-secondary btn-sm" data-action="edit" data-idx="${idx}">Edit</button>
+    </div>
+  `;
+  return card;
+}
+
+function renderGroups() {
+  const container   = $('scheduler-groups');
+  const defaultWrap = $('scheduler-default');
+  const defaultCard = $('scheduler-default-card');
+
+  container.querySelectorAll('.group-card').forEach(c => c.remove());
+  defaultCard.innerHTML = '';
+
+  const loading = $('scheduler-loading');
+  if (loading) loading.remove();
+
+  container.querySelectorAll('.empty-state').forEach(e => e.remove());
+
+  if (!schedulerConfig) {
+    defaultWrap.style.display = 'none';
+    return;
+  }
+
+  const groups = schedulerConfig.groups;
+
+  const defaultEntry  = groups.map((g, idx) => ({ g, idx })).find(({ g }) => isDefaultGroup(g));
+  const activeEntries = groups.map((g, idx) => ({ g, idx })).filter(({ g }) => !isDefaultGroup(g));
+
+  if (defaultEntry) {
+    defaultWrap.style.display = '';
+    defaultCard.appendChild(buildGroupCard(defaultEntry.g, defaultEntry.idx, { isDefault: true }));
+  } else {
+    defaultWrap.style.display = 'none';
+  }
+
+  // Timed Schedules heading — only shown when active groups exist
+  const timedHeader = $('scheduler-timed-header');
+  if (timedHeader) timedHeader.style.display = activeEntries.length > 0 ? '' : 'none';
+
+  // Display sorted by start time (visual order only — array order preserved for save)
+  const sorted = [...activeEntries].sort(
+    (a, b) => (a.g.startHour * 60 + a.g.startMinute) - (b.g.startHour * 60 + b.g.startMinute),
+  );
+
+  sorted.forEach(({ g, idx }) => {
+    container.appendChild(buildGroupCard(g, idx));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler — localStorage cache
+// ---------------------------------------------------------------------------
+
+function saveSchedulerCache(config) {
+  try {
+    localStorage.setItem(SCHEDULER_CACHE_KEY, JSON.stringify(config));
+  } catch { /* ignore quota errors */ }
+}
+
+function loadSchedulerCache() {
+  try {
+    const raw = localStorage.getItem(SCHEDULER_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler — load from inverter
+// ---------------------------------------------------------------------------
+async function loadScheduler() {
+  const icon     = $('scheduler-refresh-icon');
+  const status   = $('scheduler-status');
+  const errPanel = $('scheduler-error');
+
+  icon.classList.add('spin');
+  $('btn-refresh-scheduler').disabled = true;
+  status.textContent = 'Loading…';
+  errPanel.style.display = 'none';
+  closeGroupForm();
+
+  // Show cached data immediately while the live fetch is in flight
+  const cached = loadSchedulerCache();
+  if (cached && !schedulerConfig) {
+    schedulerConfig = cached;
+    renderGroups();
+    const activeCount = cached.groups.filter(g => !isDefaultGroup(g)).length;
+    status.textContent = `${activeCount} group${activeCount !== 1 ? 's' : ''} (cached)`;
+  }
+
+  const result = await apiGet('/api/scheduler');
+
+  icon.classList.remove('spin');
+  $('btn-refresh-scheduler').disabled = false;
+
+  if (result.ok) {
+    schedulerConfig = result.data;
+    saveSchedulerCache(schedulerConfig);
+    markClean();
+    renderGroups();
+    const activeCount = schedulerConfig.groups.filter(g => !isDefaultGroup(g)).length;
+    status.textContent = `${activeCount} group${activeCount !== 1 ? 's' : ''}`;
+  } else {
+    // If we showed cached data, keep it displayed but report the error
+    if (!schedulerConfig) {
+      $('scheduler-groups').innerHTML = '';
+    }
+    errPanel.style.display = '';
+    $('scheduler-error-msg').textContent = result.error ?? 'Could not load schedule from inverter.';
+    status.textContent = schedulerConfig ? 'Showing cached' : 'Error';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler — save to inverter
+// ---------------------------------------------------------------------------
+async function saveToInverter() {
+  const btn = $('btn-save-scheduler');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const result = await apiPost('/api/scheduler', { groups: schedulerConfig.groups });
+
+  btn.textContent = 'Save to Inverter';
+
+  if (result.ok) {
+    saveSchedulerCache(schedulerConfig);
+    markClean();
+    toast('Schedule saved to inverter');
+  } else {
+    btn.disabled = false; // allow retry
+    toast(result.error ?? 'Save failed', 'error');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler — group form
+// ---------------------------------------------------------------------------
+
+/** Dim fdSoc / fdPwr rows based on the work mode of the group being edited. */
+function updateFormFieldVisibility() {
+  const g    = editingGroupIdx !== null ? schedulerConfig.groups[editingGroupIdx] : null;
+  const isFC = g ? FORCE_MODES.has(g.workMode) : false;
+  $('gf-row-fd-soc').classList.toggle('param-row-dimmed', !isFC);
+  $('gf-row-fd-pwr').classList.toggle('param-row-dimmed', !isFC);
+}
+
+function openGroupForm(idx) {
+  editingGroupIdx = idx;
+
+  const g  = schedulerConfig.groups[idx];
+  const ep = g.extraParam;
+
+  // Show work mode + time range as read-only context (no times for the default group)
+  $('group-form-info').textContent = isDefaultGroup(g)
+    ? g.workMode
+    : `${g.workMode}  ·  ${fmtTime(g.startHour, g.startMinute)} → ${fmtTime(g.endHour, g.endMinute)}`;
+
+  $('gf-export-limit').value   = ep.exportLimit;
+  $('gf-import-limit').value   = ep.importLimit;
+  $('gf-pv-limit').value       = ep.pvLimit;
+  $('gf-min-soc').value        = ep.minSocOnGrid;
+  $('gf-max-soc').value        = ep.maxSoc;
+  $('gf-fd-soc').value         = ep.fdSoc;
+  $('gf-fd-pwr').value         = ep.fdPwr;
+  $('gf-reactive-power').value = ep.reactivePower;
+
+  updateFormFieldVisibility();
+
+  // Move the form to appear directly under the card being edited
+  const formEl = $('group-form');
+  if (isDefaultGroup(g)) {
+    // Insert after the entire default-schedule block
+    $('scheduler-default').insertAdjacentElement('afterend', formEl);
+  } else {
+    // Insert after the specific timed-schedule card
+    const card = $('scheduler-groups')
+      .querySelector(`[data-action="edit"][data-idx="${idx}"]`)
+      ?.closest('.group-card');
+    if (card) card.insertAdjacentElement('afterend', formEl);
+  }
+
+  // Trigger slide-in animation (reset class to restart if already open)
+  formEl.style.display = '';
+  formEl.classList.remove('form-slide-in');
+  void formEl.getBoundingClientRect(); // force reflow
+  formEl.classList.add('form-slide-in');
+
+  $('gf-export-limit').focus();
+}
+
+function closeGroupForm() {
+  $('group-form').style.display = 'none';
+  editingGroupIdx = null;
+}
+
+function saveGroupForm() {
+  const fieldDefs = [
+    { id: 'gf-export-limit',   key: 'exportLimit',   min: 0,      max: 30000  },
+    { id: 'gf-import-limit',   key: 'importLimit',   min: 0,      max: 30000  },
+    { id: 'gf-pv-limit',       key: 'pvLimit',       min: 0,      max: 22500  },
+    { id: 'gf-min-soc',        key: 'minSocOnGrid',  min: 10,     max: 100    },
+    { id: 'gf-max-soc',        key: 'maxSoc',        min: 10,     max: 100    },
+    { id: 'gf-fd-soc',         key: 'fdSoc',         min: 10,     max: 100    },
+    { id: 'gf-fd-pwr',         key: 'fdPwr',         min: 0,      max: 60000  },
+    { id: 'gf-reactive-power', key: 'reactivePower', min: -12000, max: 12000  },
+  ];
+
+  const extraParam = {};
+  for (const f of fieldDefs) {
+    const v = parseFloat($(f.id).value);
+    if (isNaN(v) || v < f.min || v > f.max) {
+      toast(`${f.key} must be ${f.min}–${f.max}`, 'error');
+      return;
+    }
+    extraParam[f.key] = v;
+  }
+
+  // Preserve the entire original group structure — only replace extraParam
+  schedulerConfig.groups[editingGroupIdx] = {
+    ...schedulerConfig.groups[editingGroupIdx],
+    extraParam,
+  };
+
+  markDirty();
+  renderGroups();
+  closeGroupForm();
+  const activeCount = schedulerConfig.groups.filter(g => !isDefaultGroup(g)).length;
+  $('scheduler-status').textContent = `${activeCount} group${activeCount !== 1 ? 's' : ''} (unsaved)`;
+}
+
+function initGroupForm() {
+  $('gf-save').addEventListener('click', saveGroupForm);
+  $('gf-cancel').addEventListener('click', closeGroupForm);
+
+  // Edit buttons on active group cards
+  $('scheduler-groups').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action="edit"]');
+    if (!btn) return;
+    openGroupForm(parseInt(btn.dataset.idx, 10));
+  });
+
+  // Edit button on the default group card
+  $('scheduler-default-card').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action="edit"]');
+    if (!btn) return;
+    openGroupForm(parseInt(btn.dataset.idx, 10));
+  });
+
+  $('btn-save-scheduler').addEventListener('click', saveToInverter);
+
+  $('btn-refresh-scheduler').addEventListener('click', () => {
+    if (schedulerDirty) {
+      if (!confirm('You have unsaved changes. Reload from inverter and discard them?')) return;
+    }
+    loadScheduler();
+  });
+
+  $('btn-retry-scheduler').addEventListener('click', loadScheduler);
+}
+
+// ---------------------------------------------------------------------------
+// Boot — check session by probing /api/verify-connection
+// ---------------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', async () => {
+  initNav();
+  initAuthSection();
+  initGroupForm();
+
+  $('btn-verify-refresh').addEventListener('click', verifyConnection);
+
+  // verifyConnection() makes the API call, populates the telemetry panel, and
+  // updates inverterSn + renderAuthState on success. It returns the raw result
+  // so we can decide what to load next.
+  const result = await verifyConnection();
+
+  if (result.ok) {
+    // Kick off non-critical requests in parallel
+    loadDeviceDetail();
+    loadScheduler();
+  } else {
+    // Not authenticated — show login form
+    renderAuthState(false, '');
+    // Clear stale scheduler cache from a previous session
+    localStorage.removeItem(SCHEDULER_CACHE_KEY);
+  }
+});
+</script>

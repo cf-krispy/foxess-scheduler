@@ -1,0 +1,71 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+}
+const { title = 'FoxESS Scheduler' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+  </head>
+  <body>
+
+    <!-- Mobile top bar -->
+    <div class="md:hidden fixed top-0 inset-x-0 z-10 h-[52px] bg-zinc-950 border-b border-zinc-800/60 flex items-center gap-3 px-4">
+      <button
+        id="hamburger"
+        aria-label="Open navigation"
+        class="p-2 -ml-1 rounded-md text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 transition-colors flex flex-col gap-[5px]"
+      >
+        <span class="block w-5 h-[1.5px] bg-current rounded-full"></span>
+        <span class="block w-5 h-[1.5px] bg-current rounded-full"></span>
+        <span class="block w-5 h-[1.5px] bg-current rounded-full"></span>
+      </button>
+      <span class="text-sm font-semibold text-zinc-100 tracking-tight">FoxESS Scheduler</span>
+    </div>
+
+    <!-- Sidebar backdrop (mobile only) -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop fixed inset-0 z-20 bg-black/65"></div>
+
+    <!-- Page content (sidebar + main injected via slot) -->
+    <slot />
+
+    <!-- Toast container -->
+    <div
+      id="toast-container"
+      class="fixed bottom-6 right-6 flex flex-col gap-2 z-[1000] pointer-events-none max-sm:bottom-4 max-sm:inset-x-3"
+    ></div>
+
+    <script>
+      const hamburger = document.getElementById('hamburger');
+      const sidebar   = document.querySelector('.sidebar-drawer');
+      const backdrop  = document.getElementById('sidebar-backdrop');
+
+      function openSidebar() {
+        sidebar?.classList.add('open');
+        backdrop?.classList.add('visible');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeSidebar() {
+        sidebar?.classList.remove('open');
+        backdrop?.classList.remove('visible');
+        document.body.style.overflow = '';
+      }
+
+      hamburger?.addEventListener('click', openSidebar);
+      backdrop?.addEventListener('click', closeSidebar);
+
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+          if (window.innerWidth < 768) closeSidebar();
+        });
+      });
+    </script>
+  </body>
+</html>

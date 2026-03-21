@@ -1,0 +1,23 @@
+{
+  "name": "foxess-scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "astro build",
+    "deploy": "astro build && wrangler deploy",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "astro": "^5.1.1",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "@types/node": "^25.3.3",
+    "typescript": "^5.7.3",
+    "wrangler": "^4.0.0"
+  }
+}

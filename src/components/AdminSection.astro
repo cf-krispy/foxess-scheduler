@@ -1,0 +1,136 @@
+---
+// Admin section — OAuth connection status + live inverter telemetry
+// All values are loaded / updated by client-side JS in admin/index.astro
+---
+
+<section id="section-config" class="section active">
+
+  <!-- ── Card 1: FoxESS account status ──────────────────────────────────── -->
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-4">
+    <h2 class="text-[15px] font-semibold text-zinc-100 mb-5 tracking-tight">FoxESS Account</h2>
+
+    <!-- Checking state — shown on page load while session cookie is verified -->
+    <div id="auth-checking" class="flex items-center gap-3 py-1">
+      <span class="spin text-lg leading-none text-zinc-500">↻</span>
+      <span class="text-sm text-zinc-400">Checking session…</span>
+    </div>
+
+    <!-- Not connected state -->
+    <div id="auth-disconnected" style="display:none">
+      <p class="text-sm text-zinc-400 mb-5 leading-relaxed">
+        Enter your FoxESS API key and inverter serial number to connect.
+        Credentials are stored only in this browser — nothing is kept on the server.
+      </p>
+
+      <form id="connect-form" class="space-y-4">
+
+        <div>
+          <label for="cfg-api-key" class="block text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
+            API Key
+          </label>
+          <div class="relative">
+            <input id="cfg-api-key" type="password" autocomplete="current-password"
+                   class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 pr-16 text-sm text-zinc-100
+                          placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                   placeholder="your-foxess-api-key" />
+            <button type="button" id="btn-toggle-api-key"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-300 px-1 py-0.5">
+              Show
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label for="cfg-sn" class="block text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
+            Device Serial Number
+          </label>
+          <input id="cfg-sn" type="text" autocomplete="off"
+                 class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100
+                        placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-500 font-mono"
+                 placeholder="e.g. H1234567890" />
+        </div>
+
+        <button type="submit" id="btn-connect" class="btn btn-primary">
+          Save &amp; Connect
+        </button>
+
+      </form>
+    </div>
+
+    <!-- Connected state -->
+    <div id="auth-connected" style="display:none">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+
+        <!-- Left: status badge + SN -->
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+            Connected
+          </span>
+          <span class="text-zinc-600">·</span>
+          <span class="text-sm text-zinc-400">SN: <span id="auth-sn" class="font-mono text-zinc-200"></span></span>
+        </div>
+
+        <!-- Right: device detail + disconnect -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <span id="device-detail" class="flex items-center gap-2 text-sm" style="display:none">
+            <span id="device-type" class="font-medium text-zinc-200"></span>
+            <span class="text-zinc-700">·</span>
+            <span class="text-zinc-500">fw <span id="device-fw" class="text-zinc-300"></span></span>
+            <span id="device-bat-separator" class="text-zinc-700">·</span>
+            <span id="device-bat-label" class="text-zinc-500">bat <span id="device-bat" class="text-zinc-300"></span></span>
+          </span>
+          <button id="btn-disconnect" class="btn btn-secondary btn-sm text-red-400 hover:text-red-300">
+            Disconnect
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Connection status panel (shown/populated by JS when connected) ─── -->
+  <div id="connection-status" class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4" style="display:none">
+
+    <!-- Header: icon + title on left, inverter time + refresh on right -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <span id="conn-icon" class="text-base leading-none">○</span>
+        <span id="conn-title" class="text-sm font-semibold text-zinc-400">Checking…</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="conn-time" class="text-[11px] text-zinc-500 tabular-nums"></span>
+        <button id="btn-verify-refresh" class="btn btn-secondary btn-sm" title="Recheck connection">
+          <span id="conn-refresh-icon" class="text-base leading-none select-none">↻</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2-col on mobile, 4-col on sm+ -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
+      <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Battery SoC</div>
+        <div class="text-xl font-bold font-mono tabular-nums text-zinc-100" id="conn-soc">—</div>
+      </div>
+
+      <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Battery Temp</div>
+        <div class="text-xl font-bold font-mono tabular-nums text-zinc-100" id="conn-bat-temp">—</div>
+      </div>
+
+      <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Fault</div>
+        <div class="text-sm font-semibold text-zinc-500" id="conn-fault">—</div>
+      </div>
+
+      <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Load Power</div>
+        <div class="text-xl font-bold font-mono tabular-nums text-zinc-100" id="conn-load">—</div>
+      </div>
+
+    </div>
+  </div>
+
+</section>

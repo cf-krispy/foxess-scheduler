@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "foxess-scheduler",
+
+  // Worker entry point — compiled by Wrangler from TypeScript
+  "main": "src/worker/index.ts",
+
+  "compatibility_date": "2026-03-01",
+
+  // Astro static build output served as assets.
+  // run_worker_first ensures /api/* always hits the Worker directly,
+  // skipping the unnecessary asset-lookup step for those routes.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Required secret (set once via `wrangler secret put COOKIE_ENCRYPTION_KEY`):
+  //   COOKIE_ENCRYPTION_KEY — any strong random string, used to AES-256-GCM
+  //   encrypt the session cookie so the browser never sees the raw API key.
+  //   For local dev, add to a `.dev.vars` file (never commit that file).
+
+  "observability": {
+    "enabled": true
+  }
+}

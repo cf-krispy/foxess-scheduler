@@ -1,0 +1,191 @@
+---
+// Scheduler section — reads/writes the FoxESS native scheduler via /api/scheduler.
+// All data management is handled by client-side JS in admin/index.astro.
+---
+
+<section id="section-scheduler" class="section">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="flex items-center justify-between mb-2 flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <h2 class="text-[15px] font-semibold text-zinc-100 tracking-tight">Schedule</h2>
+      <span id="scheduler-status" class="text-xs text-zinc-500"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-refresh-scheduler" class="btn btn-secondary btn-sm" title="Reload from inverter">
+        <span id="scheduler-refresh-icon" class="select-none">↻</span>
+      </button>
+      <button id="btn-save-scheduler" class="btn btn-primary btn-sm" disabled>
+        Save to Inverter
+      </button>
+    </div>
+  </div>
+  <p class="text-xs text-zinc-600 mb-4">Create schedules using the FoxESS app. Use this app to modify advanced settings per schedule.</p>
+
+  <!-- ── Unsaved changes banner ──────────────────────────────────────────── -->
+  <div
+    id="scheduler-dirty-banner"
+    class="flex items-center gap-2 px-3.5 py-2.5 mb-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-300"
+    style="display:none"
+  >
+    <span class="text-base leading-none">◆</span>
+    Unsaved changes — click <strong class="font-semibold">Save to Inverter</strong> to apply
+  </div>
+
+  <!-- ── Error state ─────────────────────────────────────────────────────── -->
+  <div id="scheduler-error" class="bg-zinc-900 border border-red-900/40 rounded-xl p-6 mb-4" style="display:none">
+    <p class="text-sm text-red-400 font-medium" id="scheduler-error-msg">Could not load schedule.</p>
+    <button id="btn-retry-scheduler" class="btn btn-secondary btn-sm mt-3">Retry</button>
+  </div>
+
+  <!-- ── Default schedule (0:00–23:59 fallback, rendered by JS) ─────────── -->
+  <div id="scheduler-default" style="display:none" class="mb-2">
+    <div class="flex items-center gap-3 mb-2">
+      <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Default Schedule</span>
+      <div class="h-px flex-1 bg-zinc-800"></div>
+    </div>
+    <div id="scheduler-default-card"></div>
+  </div>
+
+  <!-- ── Timed schedules separator (shown when active groups exist) ────── -->
+  <div id="scheduler-timed-header" style="display:none" class="flex items-center gap-3 mt-5 mb-3">
+    <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Timed Schedules</span>
+    <div class="h-px flex-1 bg-zinc-800"></div>
+  </div>
+
+  <!-- ── Active group cards (rendered by JS) ───────────────────────────── -->
+  <div id="scheduler-groups" class="flex flex-col gap-2.5 mb-4">
+    <p class="empty-state" id="scheduler-loading">Loading schedule from inverter…</p>
+  </div>
+
+  <!-- ── Edit-parameters form (moved by JS to appear under the edited card) -->
+  <div
+    id="group-form"
+    class="bg-zinc-900 border border-zinc-800 rounded-xl px-6 py-5 mt-3"
+    style="display:none"
+  >
+    <p class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Edit Parameters</p>
+    <p id="group-form-info" class="text-sm font-mono text-zinc-400 mb-5"></p>
+
+    <!-- extraParam fields -->
+    <div class="border-t border-zinc-800 pt-5 mb-5">
+      <p class="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 mb-4">Parameters</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+
+        <!-- Export Limit -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2">
+          <label for="gf-export-limit" class="form-label">Export Limit</label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-export-limit" class="form-input w-[6.5rem] text-right" min="0" max="30000" step="100" />
+            <span class="unit-label">W</span>
+          </div>
+        </div>
+
+        <!-- Import Limit -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2">
+          <label for="gf-import-limit" class="form-label">Import Limit</label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-import-limit" class="form-input w-[6.5rem] text-right" min="0" max="30000" step="100" />
+            <span class="unit-label">W</span>
+          </div>
+        </div>
+
+        <!-- PV Limit -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2">
+          <label for="gf-pv-limit" class="form-label">PV Limit</label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-pv-limit" class="form-input w-[6.5rem] text-right" min="0" max="22500" step="100" />
+            <span class="unit-label">W</span>
+          </div>
+        </div>
+
+        <!-- Min SoC on Grid -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2">
+          <label for="gf-min-soc" class="form-label">Min SoC on Grid</label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-min-soc" class="form-input w-[5rem] text-right" min="10" max="100" step="1" />
+            <span class="unit-label">%</span>
+          </div>
+        </div>
+
+        <!-- Max SoC -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2">
+          <label for="gf-max-soc" class="form-label">Max SoC</label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-max-soc" class="form-input w-[5rem] text-right" min="10" max="100" step="1" />
+            <span class="unit-label">%</span>
+          </div>
+        </div>
+
+        <!-- fdSoc (dimmed for non-FC/FD modes) -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2" id="gf-row-fd-soc">
+          <label for="gf-fd-soc" class="form-label">
+            Target SoC
+            <span class="text-zinc-600 font-normal normal-case tracking-normal ml-1 text-[10px]">(FC / FD)</span>
+          </label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-fd-soc" class="form-input w-[5rem] text-right" min="10" max="100" step="1" />
+            <span class="unit-label">%</span>
+          </div>
+        </div>
+
+        <!-- fdPwr (dimmed for non-FC/FD modes) -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2" id="gf-row-fd-pwr">
+          <label for="gf-fd-pwr" class="form-label">
+            Force Power
+            <span class="text-zinc-600 font-normal normal-case tracking-normal ml-1 text-[10px]">(FC / FD)</span>
+          </label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-fd-pwr" class="form-input w-[6.5rem] text-right" min="0" max="60000" step="100" />
+            <span class="unit-label">W</span>
+          </div>
+        </div>
+
+        <!-- Reactive Power -->
+        <div class="grid grid-cols-[1fr_auto] items-center gap-2">
+          <label for="gf-reactive-power" class="form-label">Reactive Power</label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gf-reactive-power" class="form-input w-[6.5rem] text-right" min="-12000" max="12000" step="100" />
+            <span class="unit-label">Var</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Form actions -->
+    <div class="flex gap-2">
+      <button id="gf-save"   class="btn btn-primary">Save Changes</button>
+      <button id="gf-cancel" class="btn btn-secondary">Cancel</button>
+    </div>
+  </div>
+
+</section>
+
+<style>
+  .form-label {
+    font-size: 0.8125rem; /* 13px */
+    font-weight: 500;
+    color: var(--color-zinc-400);
+  }
+  .unit-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-zinc-500);
+    min-width: 2rem;
+  }
+  /* Dimmed rows when a field is not relevant for the selected work mode */
+  .param-row-dimmed {
+    opacity: 0.35;
+  }
+
+  /* Slide-in when the edit form is opened / repositioned */
+  @keyframes form-slide-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .form-slide-in {
+    animation: form-slide-in 0.18s ease-out;
+  }
+</style>

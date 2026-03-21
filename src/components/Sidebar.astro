@@ -1,0 +1,56 @@
+---
+// Sidebar navigation — section switching handled by admin/index.astro client JS.
+---
+
+<aside class="sidebar-drawer fixed inset-y-0 left-0 z-30 w-[220px] flex flex-col bg-zinc-950 border-r border-zinc-800/60">
+
+  <!-- Brand -->
+  <div class="px-4 py-5 border-b border-zinc-800/60">
+    <div class="flex items-start justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/20 flex items-center justify-center text-base leading-none shrink-0">
+          ☀
+        </div>
+        <div>
+          <div class="text-[13px] font-semibold text-zinc-100 tracking-tight">FoxESS</div>
+          <div class="text-[11px] text-zinc-600 leading-tight mt-0.5">Inverter Settings Scheduler</div>
+        </div>
+      </div>
+      <button
+        id="sidebar-close"
+        aria-label="Close navigation"
+        class="md:hidden mt-0.5 p-1 rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors text-base leading-none"
+      >✕</button>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 px-2 py-3 flex flex-col gap-0.5">
+    <a class="nav-item active" data-section="section-config">
+      <span class="text-[15px] leading-none">⚙</span>
+      Config
+    </a>
+
+    <!-- Settings group -->
+    <div class="px-3 pt-3 pb-1">
+      <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Settings</span>
+    </div>
+    <a class="nav-item pl-5" data-section="section-scheduler">
+      Schedule
+    </a>
+  </nav>
+
+  <!-- Footer -->
+  <div class="px-4 py-3 border-t border-zinc-800/60">
+    <span class="text-[11px] text-zinc-700">v0.2</span>
+  </div>
+
+</aside>
+
+<script>
+  document.getElementById('sidebar-close')?.addEventListener('click', () => {
+    document.querySelector('.sidebar-drawer')?.classList.remove('open');
+    document.getElementById('sidebar-backdrop')?.classList.remove('visible');
+    document.body.style.overflow = '';
+  });
+</script>
