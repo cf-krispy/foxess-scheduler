@@ -39,6 +39,15 @@ Click the button below. Cloudflare will ask you to log in, connect your GitHub a
 4. The app is built and deployed to a URL like `https://foxess-scheduler.<your-subdomain>.workers.dev`
 5. From this point on, every time a commit is pushed to the `main` branch of your fork, Cloudflare automatically rebuilds and redeploys — no manual steps needed
 
+### Getting updates
+
+GitHub does not automatically push changes from the original repo into your fork. To pull in an update:
+
+1. **Watch the original repo** so you get notified when updates are published — go to the original repo on GitHub and click **Watch → All Activity**
+2. When an update is available, go to **your fork** on GitHub — you will see a banner saying *"This branch is X commits behind"*
+3. Click **Sync fork → Update branch**
+4. That's it — Cloudflare detects the new commit on your `main` branch and redeploys automatically within a minute or two
+
 ---
 
 ## Set the encryption secret
