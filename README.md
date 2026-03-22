@@ -12,6 +12,8 @@ Built on [Cloudflare Workers](https://workers.cloudflare.com/) (free tier). Your
 - This app connects to your inverter via the [FoxESS Open API](https://www.foxesscloud.com/public/i18n/en/OpenApiInfomation.html) and lets you edit the advanced parameters on each schedule that the FoxESS app hides
 - Changes are written directly to your inverter in real time
 
+> ⚠️ **Important:** If you add new schedules or modify existing ones in the FoxESS app after setting advanced parameters in this app, the FoxESS app will overwrite the inverter's schedule and your custom settings will be lost. Always use this app to make any further parameter changes after the FoxESS app has saved the schedule.
+
 ---
 
 ## What you need before deploying
