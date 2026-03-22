@@ -16,6 +16,58 @@ Built on [Cloudflare Workers](https://workers.cloudflare.com/) (free tier). Your
 
 ---
 
+## Advanced guide: set-and-forget export scheduling
+
+The FoxESS app today only exposes two settings on a schedule — **Max SoC** and **Force Power**. This app unlocks the full parameter set:
+
+| Parameter | Description |
+|---|---|
+| **Export Limit** | Caps power sent to the grid. Overrides Force Power (FD). |
+| **Import Limit** | Caps power drawn from the grid. Set to 0 to block import entirely. |
+| **Target SoC (FC / FD)** | Force Charge stops at this level. Force Discharge stops at this level. |
+| **PV Limit** | Caps solar input. Useful for curtailing generation. |
+| **Min SoC on Grid** | Battery floor while grid is available. |
+| **Reactive Power** | Power factor correction. Leave at 0 unless your provider requires otherwise. |
+
+### The core problem
+
+**Force Power is not your export rate — it is your total battery discharge rate.** House load takes its cut first. 
+
+### The formula
+
+Work out your **baseline** — the background draw of your home with nothing unusual running (ie - fridge, router, lighting, standby). For most homes this is 500–700W. Check your inverter's load history on a quiet day during the export period to find yours.
+
+```
+Force Power  =  Intended Export + Baseline
+Export Limit =  Intended Export
+```
+
+**Example:** 5,000W intended export, 700W baseline → Set Force Power to 5,700W and Export Limit to 5,000W.
+
+- Normal conditions: 700W powers the house, 5,000W goes to the grid
+- Oven turns on (2,000W): export drops to 3,000W, battery discharge rate unchanged — the inverter absorbs the load variation automatically
+- Oven turns off: export returns to 5,000W
+- Load drops near zero: Export Limit prevents over-export
+
+### Protecting the battery floor
+
+When Target SoC is hit, the inverter stops discharging and will immediately start importing from the grid to supply the house load. During an export window, that is the opposite of what you want.
+
+Fix: combine Target SoC with **Import Limit = 0**. With no grid import allowed, the inverter continues drawing house load from the battery below the Target SoC threshold. This means Target SoC is a floor for *forced export*, not for house load - the battery will keep draining past it to run the house. Set it higher than your true minimum to account for this.
+
+### Summary
+
+| Setting | Value | Purpose |
+|---|---|---|
+| Force Power | Intended export + baseline | Total discharge rate |
+| Export Limit | Intended export | Hard ceiling on grid export |
+| Target SoC | Your floor + buffer | Stops forced export before battery is depleted |
+| Import Limit | 0W | Prevents grid import when Target SoC is hit |
+
+Four settings, configured once. No automation platform required.
+
+---
+
 ## What you need before deploying
 
 - A **FoxESS developer API key** — get one from [foxesscloud.com](https://www.foxesscloud.com) → Personal Details → My Server → API Key
