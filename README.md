@@ -2,7 +2,7 @@
 
 A web app for FoxESS inverter owners to view and modify **advanced schedule settings** — export limits, import limits, SoC targets, and more — that the official FoxESS app does not expose.
 
-Built on [Cloudflare Workers](https://workers.cloudflare.com/) (free tier). Your FoxESS API key never touches a shared server — it is encrypted and stored only in your own browser session.
+This project is built on [Cloudflare Workers](https://workers.cloudflare.com/) (free tier). Your FoxESS API key never touches a shared server — it is encrypted and stored only in your own browser session.
 
 ---
 
