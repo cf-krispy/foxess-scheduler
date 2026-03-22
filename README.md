@@ -92,17 +92,47 @@ Click the button below. Cloudflare will ask you to log in, connect your GitHub a
 
 ### Getting updates
 
-This repo includes a GitHub Actions workflow that automatically syncs your copy with the latest changes from the original repo every night at 2am UTC. When new commits arrive, Cloudflare detects the push and redeploys automatically — nothing for you to do.
+Updates are handled by a GitHub Actions workflow that syncs your copy with this repo every night at 2am UTC. When new commits arrive, Cloudflare detects the push and redeploys automatically.
 
-**One-time setup after your initial deploy:**
+The Cloudflare Deploy button does not copy the `.github/` folder, so you need to add the workflow file manually once. You can do this entirely in the GitHub web interface — no terminal required.
 
-1. Go to your repo on GitHub
-2. Click the **Actions** tab
-3. Click **Enable workflows**
+GitHub does not allow its default automation token to push workflow files, so you need to create a Personal Access Token (PAT) once. This sounds more involved than it is — it takes about two minutes.
 
-That's it. Updates flow automatically from that point on.
+**Step 1 — Create a Personal Access Token**
 
-To pull in an update immediately without waiting for the nightly run: **Actions → Sync upstream → Run workflow**.
+1. Go to [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new) (you must be logged into the account that owns the copied repo)
+2. Give it a name e.g. `foxess-sync`
+3. Set **Expiration** to whatever you are comfortable with (1 year is reasonable)
+4. Under **Repository access** select **Only select repositories** and choose your `foxess-scheduler` repo
+5. Under **Permissions → Repository permissions** set:
+   - **Contents** → Read and write
+   - **Workflows** → Read and write
+6. Click **Generate token** and copy it — you will not see it again
+
+**Step 2 — Add the token as a repository secret**
+
+1. Go to your `foxess-scheduler` repo → **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Name: `SYNC_TOKEN`
+4. Value: paste the token you just created
+5. Click **Add secret**
+
+**Step 3 — Add the workflow file**
+
+1. In your repo click **Add file → Create new file**
+2. In the filename box type exactly: `.github/workflows/sync-upstream.yml`
+   (GitHub creates the folders automatically as you type the slashes)
+3. Copy the contents of [sync-upstream.yml](https://raw.githubusercontent.com/cf-krispy/foxess-scheduler/main/.github/workflows/sync-upstream.yml) and paste them into the editor
+4. Click **Commit changes**
+
+**Step 4 — Enable and test**
+
+1. Go to **Settings → Actions → General**, set **Actions permissions** to **Allow all actions and reusable workflows**, click **Save**
+2. Go to the **Actions** tab → **Sync upstream → Run workflow**
+
+After that, the workflow runs automatically every night. Cloudflare redeploys on each sync — nothing further to do.
+
+To pull in an update at any time: **Actions → Sync upstream → Run workflow**.
 
 ---
 

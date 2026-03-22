@@ -3,8 +3,8 @@ name: Sync upstream
 # Runs daily at 2am UTC and syncs any new commits from the original repo
 # into this copy. Cloudflare detects the push and redeploys automatically.
 #
-# ONE-TIME SETUP: go to your repo on GitHub → Actions tab → Enable workflows.
-# After that this runs automatically — no further action needed.
+# ONE-TIME SETUP: see README — you need to create a personal access token
+# and add it as a repository secret named SYNC_TOKEN before this will work.
 #
 # To pull in an update immediately: Actions → Sync upstream → Run workflow.
 
@@ -17,19 +17,16 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Sync from upstream
         run: |
-          git remote add upstream https://github.com/cf-krispy/foxess-scheduler.git
-          git fetch upstream
-          git merge upstream/main --no-edit
-          git push origin main
+          git init repo
+          cd repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git remote add upstream "https://github.com/cf-krispy/foxess-scheduler.git"
+          git fetch upstream main
+          git checkout -B main upstream/main
+          git push origin main --force
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
