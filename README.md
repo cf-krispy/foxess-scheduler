@@ -70,8 +70,8 @@ Four settings, configured once. No automation platform required.
 
 ## What you need before deploying
 
-- A **FoxESS developer API key** — get one from [foxesscloud.com](https://www.foxesscloud.com) → Personal Details → My Server → API Key
-- Your **inverter serial number** — visible in the FoxESS app under Device
+- A **FoxESS developer API key** — get one from [foxesscloud.com](https://www.foxesscloud.com) → Log In → User Profile → API Management → Private token → Generate API Key
+- Your **inverter serial number** — visible in the FoxESS app or FoxCloud website
 - A **Cloudflare account** (free) — [sign up here](https://dash.cloudflare.com/sign-up)
 - A **GitHub account** — so Cloudflare can connect to this repo and auto-deploy updates
 
@@ -81,9 +81,7 @@ Four settings, configured once. No automation platform required.
 
 Click the button below. Cloudflare will ask you to log in, connect your GitHub account, and then fork and deploy this repo automatically.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR-GITHUB-USERNAME/foxess-scheduler)
-
-> **Before clicking:** replace `YOUR-GITHUB-USERNAME` in the URL above with your actual GitHub username.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cf-krispy/foxess-scheduler)
 
 ### What happens when you click Deploy
 
