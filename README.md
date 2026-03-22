@@ -85,15 +85,14 @@ Click the button below. Cloudflare will ask you to log in, connect your GitHub a
 
 ### What happens when you click Deploy
 
-1. You log in to Cloudflare (or create a free account)
+1. Log in to Cloudflare (or create a free account)
 2. Cloudflare redirects you to GitHub and asks you to install the **Cloudflare Workers and Pages** GitHub App — this gives Cloudflare permission to fork the repo and trigger automatic builds on new commits. Click **Install & Authorize** when prompted.
 3. Cloudflare forks this repository into your GitHub account
 4. The app is built and deployed to a URL like `https://foxess-scheduler.<your-subdomain>.workers.dev`
-5. From this point on, every time a commit is pushed to the `main` branch of your fork, Cloudflare automatically rebuilds and redeploys — no manual steps needed
 
 ### Getting updates
 
-GitHub does not automatically push changes from the original repo into your fork. To pull in an update:
+GitHub will not automatically push changes from the original repo into your fork. To pull in an update:
 
 1. **Watch the original repo** so you get notified when updates are published — go to the original repo on GitHub and click **Watch → All Activity**
 2. When an update is available, go to **your fork** on GitHub — you will see a banner saying *"This branch is X commits behind"*
