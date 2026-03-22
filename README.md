@@ -87,17 +87,22 @@ Click the button below. Cloudflare will ask you to log in, connect your GitHub a
 
 1. Log in to Cloudflare (or create a free account)
 2. Cloudflare redirects you to GitHub and asks you to install the **Cloudflare Workers and Pages** GitHub App — this gives Cloudflare permission to fork the repo and trigger automatic builds on new commits. Click **Install & Authorize** when prompted.
-3. Cloudflare forks this repository into your GitHub account
+3. Cloudflare copies this repository into your GitHub account
 4. The app is built and deployed to a URL like `https://foxess-scheduler.<your-subdomain>.workers.dev`
 
 ### Getting updates
 
-GitHub will not automatically push changes from the original repo into your fork. To pull in an update:
+This repo includes a GitHub Actions workflow that automatically syncs your copy with the latest changes from the original repo every night at 2am UTC. When new commits arrive, Cloudflare detects the push and redeploys automatically — nothing for you to do.
 
-1. **Watch the original repo** so you get notified when updates are published — go to the original repo on GitHub and click **Watch → All Activity**
-2. When an update is available, go to **your fork** on GitHub — you will see a banner saying *"This branch is X commits behind"*
-3. Click **Sync fork → Update branch**
-4. That's it — Cloudflare detects the new commit on your `main` branch and redeploys automatically within a minute or two
+**One-time setup after your initial deploy:**
+
+1. Go to your repo on GitHub
+2. Click the **Actions** tab
+3. Click **Enable workflows**
+
+That's it. Updates flow automatically from that point on.
+
+To pull in an update immediately without waiting for the nightly run: **Actions → Sync upstream → Run workflow**.
 
 ---
 
@@ -182,7 +187,7 @@ The login is remembered for 24 hours by default (configurable in Access → Appl
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR-GITHUB-USERNAME/foxess-scheduler
+git clone https://github.com/cf-krispy/foxess-scheduler
 cd foxess-scheduler
 
 # Install dependencies

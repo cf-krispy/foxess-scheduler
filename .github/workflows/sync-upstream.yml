@@ -1,0 +1,35 @@
+name: Sync upstream
+
+# Runs daily at 2am UTC and syncs any new commits from the original repo
+# into this copy. Cloudflare detects the push and redeploys automatically.
+#
+# ONE-TIME SETUP: go to your repo on GitHub → Actions tab → Enable workflows.
+# After that this runs automatically — no further action needed.
+#
+# To pull in an update immediately: Actions → Sync upstream → Run workflow.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync from upstream
+        run: |
+          git remote add upstream https://github.com/cf-krispy/foxess-scheduler.git
+          git fetch upstream
+          git merge upstream/main --no-edit
+          git push origin main
