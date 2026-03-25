@@ -178,25 +178,34 @@ By default your worker URL is publicly reachable - anyone who finds the URL can 
 1. Go to [one.dash.cloudflare.com](https://one.dash.cloudflare.com)
 2. If this is your first time, Cloudflare will ask you to pick a **team name** — this becomes your login portal domain (e.g. `myname.cloudflareaccess.com`). Pick anything, it can be changed later.
 
-### Step 2 — Create an Access Application
+### Step 2 — Create an Access Policy
 
-1. In the left sidebar go to **Access → Applications**
-2. Click **Add an application**
-3. Choose **Self-hosted**
-4. Fill in the form:
-   - **Application name:** `FoxESS Scheduler` (or whatever you like)
-   - **Application domain:** your worker URL without `https://` — e.g. `foxess-scheduler.yoursubdomain.workers.dev`
-   - Leave the path blank to protect the whole app
-5. Click **Next**
-
-### Step 3 — Create an Access Policy
-
+1. In the left sidebar go to **Access contols → Policies**
+2. Click **Add a policy**
 1. **Policy name:** `Owner only` (or anything)
 2. **Action:** Allow
 3. Under **Include**, set the rule:
    - Selector: **Emails**
    - Value: your email address (e.g. `you@example.com`)
-4. Click **Next**, then **Add application**
+4. Click **Save**
+
+### Step 3 — Create an Access Application
+
+1. In the left sidebar go to **Access controls → Applications**
+2. Click **Add an application**
+3. Choose **Self-hosted**
+4. Fill in the form:
+   - **Application name:** `FoxESS Scheduler` (or whatever you like)
+   - Select **+ Add public hostname**
+      - **Subdomain** `foxess-scheduler`
+      - **Domain** `<yoursubdomain>.workers.dev`
+      - Leave the path blank
+5. Click **Select existing policies**
+      - Select the policy you created earlier (e.g. `Owner only`)
+      - Unselect **Accept all available identity providers**
+      - Check only **One-time PIN**
+6. Click **Next**, then **Next** again
+7. Click **Save**
 
 ### Step 4 — Test it
 
