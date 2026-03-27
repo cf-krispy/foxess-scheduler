@@ -8,7 +8,7 @@
   <!-- ── Header ─────────────────────────────────────────────────────────── -->
   <div class="flex items-center justify-between mb-2 flex-wrap gap-3">
     <div class="flex items-center gap-3">
-      <h2 class="text-[15px] font-semibold text-zinc-100 tracking-tight">Schedule</h2>
+      <h2 class="text-[15px] font-semibold text-zinc-100 tracking-tight">Work Mode</h2>
       <span id="scheduler-status" class="text-xs text-zinc-500"></span>
     </div>
     <div class="flex items-center gap-2">
@@ -38,18 +38,9 @@
     <button id="btn-retry-scheduler" class="btn btn-secondary btn-sm mt-3">Retry</button>
   </div>
 
-  <!-- ── Default schedule (0:00–23:59 fallback, rendered by JS) ─────────── -->
-  <div id="scheduler-default" style="display:none" class="mb-2">
-    <div class="flex items-center gap-3 mb-2">
-      <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Default Schedule</span>
-      <div class="h-px flex-1 bg-zinc-800"></div>
-    </div>
-    <div id="scheduler-default-card"></div>
-  </div>
-
-  <!-- ── Timed schedules separator (shown when active groups exist) ────── -->
-  <div id="scheduler-timed-header" style="display:none" class="flex items-center gap-3 mt-5 mb-3">
-    <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Timed Schedules</span>
+  <!-- ── Schedule separator (shown when active groups exist) ─────────── -->
+  <div id="scheduler-timed-header" style="display:none" class="flex items-center gap-3 mb-3">
+    <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Schedule</span>
     <div class="h-px flex-1 bg-zinc-800"></div>
   </div>
 
@@ -159,6 +150,15 @@
       <button id="gf-save"   class="btn btn-primary">Save Changes</button>
       <button id="gf-cancel" class="btn btn-secondary">Cancel</button>
     </div>
+  </div>
+
+  <!-- ── Remaining Time Mode (0:00–23:59 fallback, rendered by JS) ──────── -->
+  <div id="scheduler-default" style="display:none" class="mt-6 mb-2">
+    <div class="flex items-center gap-3 mb-2">
+      <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Remaining Time Mode</span>
+      <div class="h-px flex-1 bg-zinc-800"></div>
+    </div>
+    <div id="scheduler-default-card"></div>
   </div>
 
 </section>

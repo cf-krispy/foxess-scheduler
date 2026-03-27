@@ -90,44 +90,76 @@
 
   </div>
 
-  <!-- ── Connection status panel (shown/populated by JS when connected) ─── -->
-  <div id="connection-status" class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4" style="display:none">
+  <!-- ── Quick Settings panel (shown when connected) ─────────────────── -->
+  <div id="connection-status" class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-4" style="display:none">
 
-    <!-- Header: icon + title on left, inverter time + refresh on right -->
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2">
-        <span id="conn-icon" class="text-base leading-none">○</span>
-        <span id="conn-title" class="text-sm font-semibold text-zinc-400">Checking…</span>
-      </div>
-      <div class="flex items-center gap-3">
-        <span id="conn-time" class="text-[11px] text-zinc-500 tabular-nums"></span>
-        <button id="btn-verify-refresh" class="btn btn-secondary btn-sm" title="Recheck connection">
-          <span id="conn-refresh-icon" class="text-base leading-none select-none">↻</span>
-        </button>
-      </div>
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-[15px] font-semibold text-zinc-100 tracking-tight">Quick Settings</h2>
+      <button id="gs-refresh-btn" class="btn btn-secondary btn-sm" title="Reload settings from inverter">
+        <span id="gs-refresh-icon" class="text-base leading-none select-none">↻</span>
+      </button>
     </div>
 
-    <!-- 2-col on mobile, 4-col on sm+ -->
+    <!-- 2-col on mobile, 4-col on sm+ — Global inverter settings -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 
+      <!-- Tile 1: Export Limit -->
       <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Battery SoC</div>
-        <div class="text-xl font-bold font-mono tabular-nums text-zinc-100" id="conn-soc">—</div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">Export Limit</div>
+        <div id="gs-export-limit-loading" class="text-[11px] text-zinc-600">Loading…</div>
+        <div id="gs-export-limit-content" class="hidden">
+          <div class="text-xl font-bold font-mono tabular-nums text-zinc-100 mb-2" id="gs-export-limit-value">—</div>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gs-export-limit-input" min="0" max="30000" step="100"
+                   class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-100
+                          font-mono w-[5rem] focus:outline-none focus:ring-1 focus:ring-zinc-600 tabular-nums" />
+            <span class="text-[10px] text-zinc-500">W</span>
+            <button id="gs-export-limit-save" class="btn btn-primary btn-sm">Set</button>
+          </div>
+          <p id="gs-export-limit-status" class="text-[10px] mt-1.5 hidden"></p>
+        </div>
+        <div id="gs-export-limit-error" class="hidden">
+          <p class="text-[10px] text-red-400 leading-tight" id="gs-export-limit-error-msg">Could not load.</p>
+          <button id="gs-export-limit-retry" class="text-[10px] text-zinc-500 hover:text-zinc-300 mt-1 underline">retry</button>
+        </div>
       </div>
 
+      <!-- Tile 2: Import Limit -->
       <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Battery Temp</div>
-        <div class="text-xl font-bold font-mono tabular-nums text-zinc-100" id="conn-bat-temp">—</div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">Import Limit</div>
+        <div id="gs-import-limit-loading" class="text-[11px] text-zinc-600">Loading…</div>
+        <div id="gs-import-limit-content" class="hidden">
+          <div class="text-xl font-bold font-mono tabular-nums text-zinc-100 mb-2" id="gs-import-limit-value">—</div>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="gs-import-limit-input" min="0" max="100000" step="100"
+                   class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-100
+                          font-mono w-[5rem] focus:outline-none focus:ring-1 focus:ring-zinc-600 tabular-nums" />
+            <span class="text-[10px] text-zinc-500">W</span>
+            <button id="gs-import-limit-save" class="btn btn-primary btn-sm">Set</button>
+          </div>
+          <p id="gs-import-limit-status" class="text-[10px] mt-1.5 hidden"></p>
+        </div>
+        <div id="gs-import-limit-error" class="hidden">
+          <p class="text-[10px] text-red-400 leading-tight" id="gs-import-limit-error-msg">Could not load.</p>
+          <button id="gs-import-limit-retry" class="text-[10px] text-zinc-500 hover:text-zinc-300 mt-1 underline">retry</button>
+        </div>
       </div>
 
+      <!-- Tile 3: Fault Status -->
       <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Fault</div>
-        <div class="text-sm font-semibold text-zinc-500" id="conn-fault">—</div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">Fault Status</div>
+        <div id="gs-fault-loading" class="text-[11px] text-zinc-600">Loading…</div>
+        <div id="gs-fault-content" class="hidden">
+          <div class="text-sm font-semibold mt-1" id="gs-fault-value">—</div>
+        </div>
+        <div id="gs-fault-error" class="hidden">
+          <p class="text-[10px] text-red-400 leading-tight" id="gs-fault-error-msg">Could not load.</p>
+        </div>
       </div>
 
-      <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">Load Power</div>
-        <div class="text-xl font-bold font-mono tabular-nums text-zinc-100" id="conn-load">—</div>
+      <!-- Tile 4: reserved for future global settings -->
+      <div class="bg-zinc-950/60 border border-zinc-800/60 rounded-lg p-3 opacity-30">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">—</div>
       </div>
 
     </div>

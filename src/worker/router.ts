@@ -4,6 +4,7 @@ import { handleVerifyConnectionGet } from './api/verifyConnection';
 import { handleDeviceDetailGet } from './api/deviceDetail';
 import { handleSchedulerGet, handleSchedulerPost } from './api/scheduler';
 import { handleExportLimitGet, handleExportLimitPost } from './api/exportLimit';
+import { handleImportLimitGet, handleImportLimitPost } from './api/importLimit';
 import { decryptSession } from './crypto';
 
 // The Worker sets this cookie after a successful /api/auth/connect call.
@@ -52,6 +53,10 @@ export async function handleFetch(
     } else if (pathname === '/api/export-limit') {
       if (method === 'GET')       return handleExportLimitGet(env, session);
       else if (method === 'POST') return handleExportLimitPost(request, env, session);
+      else return Response.json({ ok: false, error: 'Method not allowed' }, { status: 405 });
+    } else if (pathname === '/api/import-limit') {
+      if (method === 'GET')       return handleImportLimitGet(env, session);
+      else if (method === 'POST') return handleImportLimitPost(request, env, session);
       else return Response.json({ ok: false, error: 'Method not allowed' }, { status: 405 });
     } else {
       return Response.json({ ok: false, error: 'Not found' }, { status: 404 });

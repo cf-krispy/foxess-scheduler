@@ -5,7 +5,7 @@ import AdminSection from '../../components/AdminSection.astro';
 import SchedulerSection from '../../components/SchedulerSection.astro';
 ---
 
-<AdminLayout title="FoxESS Scheduler">
+<AdminLayout title="Advanced Scheduler for FoxESS">
   <Sidebar />
 
   <main class="md:ml-[220px] pt-[52px] md:pt-0 px-4 sm:px-6 md:px-10 py-6 md:py-10 max-w-[1020px]">
@@ -221,60 +221,35 @@ async function loadDeviceDetail() {
 // Connection verification
 // ---------------------------------------------------------------------------
 async function verifyConnection() {
-  const panel       = $('connection-status');
-  const refreshBtn  = $('btn-verify-refresh');
-  const refreshIcon = $('conn-refresh-icon');
-
-  panel.style.display = '';
-  refreshBtn.disabled = true;
-  refreshIcon.classList.add('spin');
-
-  $('conn-icon').textContent  = '○';
-  $('conn-icon').className    = 'text-base leading-none text-zinc-500';
-  $('conn-title').textContent = 'Checking connection��';
-  $('conn-title').className   = 'text-sm font-semibold text-zinc-400';
-  $('conn-time').textContent  = '';
-  $('conn-soc').textContent      = '…';
-  $('conn-bat-temp').textContent = '…';
-  $('conn-fault').textContent    = '…';
-  $('conn-fault').className      = 'text-sm font-semibold text-zinc-500';
-  $('conn-load').textContent     = '…';
+  $('gs-fault-loading')?.classList.remove('hidden');
+  $('gs-fault-content')?.classList.add('hidden');
+  $('gs-fault-error')?.classList.add('hidden');
+  gsSpinStart();
 
   const result = await apiGet('/api/verify-connection');
 
-  refreshBtn.disabled = false;
-  refreshIcon.classList.remove('spin');
+  gsSpinEnd();
+  $('gs-fault-loading')?.classList.add('hidden');
 
   if (result.ok) {
     const d = result.data;
-    $('conn-icon').textContent  = '✓';
-    $('conn-icon').className    = 'text-base leading-none text-emerald-400';
-    $('conn-title').textContent = 'Connection verified';
-    $('conn-title').className   = 'text-sm font-semibold text-emerald-400';
-    $('conn-time').textContent  = d.time;
-    $('conn-soc').textContent      = d.soc           != null ? `${d.soc}%`                         : '—';
-    $('conn-bat-temp').textContent = d.batTemperature != null ? `${d.batTemperature}°C`             : '—';
-    $('conn-load').textContent     = d.loadsPower     != null ? `${d.loadsPower.toFixed(2)} kW`     : '—';
-    const hasFault = d.currentFault && d.currentFault !== '';
-    $('conn-fault').textContent = hasFault ? d.currentFault : 'No fault';
-    $('conn-fault').className   = `text-sm font-semibold ${hasFault ? 'text-red-400' : 'text-emerald-400'}`;
-
-    // Expose SN from device response (server populates it from the session)
+    $('connection-status').style.display = '';
+    // Populate inverter SN from session (server-side, not stored in JS)
     if (d.deviceSN && !inverterSn) {
       inverterSn = d.deviceSN;
       renderAuthState(true, inverterSn);
     }
+    // Populate fault tile
+    const hasFault = d.currentFault && d.currentFault !== '';
+    const faultEl = $('gs-fault-value');
+    if (faultEl) {
+      faultEl.textContent = hasFault ? d.currentFault : 'No fault';
+      faultEl.className   = `text-sm font-semibold ${hasFault ? 'text-red-400' : 'text-emerald-400'}`;
+    }
+    $('gs-fault-content')?.classList.remove('hidden');
   } else {
-    $('conn-icon').textContent  = '✗';
-    $('conn-icon').className    = 'text-base leading-none text-red-400';
-    $('conn-title').textContent = result.error ?? 'Connection failed';
-    $('conn-title').className   = 'text-sm font-semibold text-red-400';
-    $('conn-time').textContent  = '';
-    $('conn-soc').textContent      = '—';
-    $('conn-bat-temp').textContent = '—';
-    $('conn-fault').textContent    = '—';
-    $('conn-fault').className      = 'text-sm font-semibold text-zinc-500';
-    $('conn-load').textContent     = '—';
+    if ($('gs-fault-error-msg')) $('gs-fault-error-msg').textContent = result.error ?? 'Could not load.';
+    $('gs-fault-error')?.classList.remove('hidden');
   }
 
   return result;
@@ -308,13 +283,13 @@ function markClean() {
 function buildGroupCard(g, idx, { conflict = false, isDefault = false } = {}) {
   const isForce = FORCE_MODES.has(g.workMode);
 
-  const modeColour = {
-    SelfUse:        'text-emerald-400',
-    ForceCharge:    'text-blue-400',
-    ForceDischarge: 'text-amber-400',
-    Feedin:         'text-violet-400',
-    Backup:         'text-zinc-400',
-  }[g.workMode] ?? 'text-zinc-400';
+  const modeAccent = {
+    SelfUse:        '#eab308', // yellow
+    ForceCharge:    '#22c55e', // green
+    ForceDischarge: '#3b82f6', // blue
+    Feedin:         '#a855f7', // purple
+    Backup:         '#06b6d4', // cyan
+  }[g.workMode] ?? '#71717a';
 
   const details = [`export ${g.extraParam.exportLimit.toLocaleString()}W`];
   if (isForce) {
@@ -330,10 +305,11 @@ function buildGroupCard(g, idx, { conflict = false, isDefault = false } = {}) {
 
   const card = document.createElement('div');
   card.className = 'schedule-card card-scheduled group-card';
+  card.style.borderLeftColor = modeAccent;
   card.innerHTML = `
     <div class="schedule-card-meta">
       <span class="schedule-card-name">
-        <span class="${modeColour} font-semibold">${escapeHtml(g.workMode)}</span>
+        <span class="font-semibold text-zinc-100">${escapeHtml(g.workMode)}</span>
         ${timeSpan}
         ${conflict ? ' <span class="text-amber-400 text-xs font-semibold ml-1" title="Time conflict with another group">⚠ conflict</span>' : ''}
       </span>
@@ -478,6 +454,175 @@ async function saveToInverter() {
 }
 
 // ---------------------------------------------------------------------------
+// Global Settings — shared spinner for the Quick Settings refresh button
+// ---------------------------------------------------------------------------
+let _gsInFlight = 0;
+
+function gsSpinStart() {
+  _gsInFlight++;
+  $('gs-refresh-btn')?.setAttribute('disabled', 'disabled');
+  $('gs-refresh-icon')?.classList.add('spin');
+}
+
+function gsSpinEnd() {
+  _gsInFlight = Math.max(0, _gsInFlight - 1);
+  if (_gsInFlight === 0) {
+    $('gs-refresh-btn')?.removeAttribute('disabled');
+    $('gs-refresh-icon')?.classList.remove('spin');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Global Settings — Export Limit tile
+// ---------------------------------------------------------------------------
+let _gsExportTimer = null;
+
+function gsExportSetStatus(msg, type) {
+  const el = $('gs-export-limit-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = `text-[10px] mt-1.5 ${type === 'error' ? 'text-red-400' : 'text-emerald-400'}`;
+  el.classList.remove('hidden');
+  clearTimeout(_gsExportTimer);
+  _gsExportTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+async function loadExportLimit() {
+  $('gs-export-limit-loading').classList.remove('hidden');
+  $('gs-export-limit-content').classList.add('hidden');
+  $('gs-export-limit-error').classList.add('hidden');
+  gsSpinStart();
+
+  const result = await apiGet('/api/export-limit');
+
+  gsSpinEnd();
+  $('gs-export-limit-loading').classList.add('hidden');
+
+  if (result.ok) {
+    $('gs-export-limit-value').textContent = result.data.value.toLocaleString() + ' W';
+    $('gs-export-limit-input').value = String(result.data.value);
+    $('gs-export-limit-content').classList.remove('hidden');
+  } else {
+    $('gs-export-limit-error-msg').textContent = result.error ?? 'Could not load.';
+    $('gs-export-limit-error').classList.remove('hidden');
+  }
+}
+
+async function saveExportLimit() {
+  const input = $('gs-export-limit-input');
+  const raw   = parseInt(input.value, 10);
+  if (isNaN(raw) || raw < 0 || raw > 30000) {
+    gsExportSetStatus('Must be 0–30000 W', 'error');
+    return;
+  }
+
+  const btn = $('gs-export-limit-save');
+  btn.disabled    = true;
+  btn.textContent = '…';
+
+  const result = await apiPost('/api/export-limit', { value: raw });
+
+  btn.disabled    = false;
+  btn.textContent = 'Set';
+
+  if (result.ok) {
+    $('gs-export-limit-value').textContent = raw.toLocaleString() + ' W';
+    gsExportSetStatus('Saved', 'success');
+  } else {
+    gsExportSetStatus(result.error ?? 'Save failed', 'error');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Global Settings — Import Limit tile
+// ---------------------------------------------------------------------------
+let _gsImportTimer = null;
+
+function gsImportSetStatus(msg, type) {
+  const el = $('gs-import-limit-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = `text-[10px] mt-1.5 ${type === 'error' ? 'text-red-400' : 'text-emerald-400'}`;
+  el.classList.remove('hidden');
+  clearTimeout(_gsImportTimer);
+  _gsImportTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+async function loadImportLimit() {
+  $('gs-import-limit-loading').classList.remove('hidden');
+  $('gs-import-limit-content').classList.add('hidden');
+  $('gs-import-limit-error').classList.add('hidden');
+  gsSpinStart();
+
+  const result = await apiGet('/api/import-limit');
+
+  gsSpinEnd();
+  $('gs-import-limit-loading').classList.add('hidden');
+
+  if (result.ok) {
+    $('gs-import-limit-value').textContent = result.data.value.toLocaleString() + ' W';
+    $('gs-import-limit-input').value = String(result.data.value);
+    $('gs-import-limit-content').classList.remove('hidden');
+  } else {
+    $('gs-import-limit-error-msg').textContent = result.error ?? 'Could not load.';
+    $('gs-import-limit-error').classList.remove('hidden');
+  }
+}
+
+async function saveImportLimit() {
+  const input = $('gs-import-limit-input');
+  const raw   = parseInt(input.value, 10);
+  if (isNaN(raw) || raw < 0 || raw > 100000) {
+    gsImportSetStatus('Must be 0–100000 W', 'error');
+    return;
+  }
+
+  const btn = $('gs-import-limit-save');
+  btn.disabled    = true;
+  btn.textContent = '…';
+
+  const result = await apiPost('/api/import-limit', { value: raw });
+
+  btn.disabled    = false;
+  btn.textContent = 'Set';
+
+  if (result.ok) {
+    $('gs-import-limit-value').textContent = raw.toLocaleString() + ' W';
+    gsImportSetStatus('Saved', 'success');
+  } else {
+    gsImportSetStatus(result.error ?? 'Save failed', 'error');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Global Settings — init + refresh
+// ---------------------------------------------------------------------------
+function initGlobalSettings() {
+  $('gs-export-limit-save')?.addEventListener('click', saveExportLimit);
+  $('gs-export-limit-retry')?.addEventListener('click', loadExportLimit);
+  $('gs-export-limit-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveExportLimit();
+  });
+
+  $('gs-import-limit-save')?.addEventListener('click', saveImportLimit);
+  $('gs-import-limit-retry')?.addEventListener('click', loadImportLimit);
+  $('gs-import-limit-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveImportLimit();
+  });
+
+  $('gs-refresh-btn')?.addEventListener('click', () => {
+    loadExportLimit();
+    loadImportLimit();
+    verifyConnection();
+  });
+}
+
+function loadAllGlobalSettings() {
+  loadExportLimit();
+  loadImportLimit();
+}
+
+// ---------------------------------------------------------------------------
 // Scheduler — group form
 // ---------------------------------------------------------------------------
 
@@ -610,11 +755,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initNav();
   initAuthSection();
   initGroupForm();
+  initGlobalSettings();
 
-  $('btn-verify-refresh').addEventListener('click', verifyConnection);
-
-  // verifyConnection() makes the API call, populates the telemetry panel, and
-  // updates inverterSn + renderAuthState on success. It returns the raw result
+  // verifyConnection() checks the session, shows the Quick Settings panel on
+  // success, and populates inverterSn + renderAuthState. Returns the result
   // so we can decide what to load next.
   const result = await verifyConnection();
 
@@ -622,6 +766,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Kick off non-critical requests in parallel
     loadDeviceDetail();
     loadScheduler();
+    loadAllGlobalSettings();
   } else {
     // Not authenticated — show login form
     renderAuthState(false, '');
