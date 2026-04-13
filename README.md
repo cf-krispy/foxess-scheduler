@@ -12,8 +12,6 @@ This project is built on [Cloudflare Workers](https://workers.cloudflare.com/) (
 - This app connects to your inverter via the [FoxESS Open API](https://www.foxesscloud.com/public/i18n/en/OpenApiInfomation.html) and lets you edit the advanced parameters on each schedule that the FoxESS app hides
 - Changes are written directly to your inverter in real time
 
-> ⚠️ **Important:** If you add new schedules or modify existing ones in the FoxESS app after setting advanced parameters in this app, the advanced settings may lost the inverter's schedule. Always use this app to make any further parameter changes after the FoxESS app has saved the desired schedules.
-
 ---
 
 ## Advanced guide: set-and-forget export scheduling
@@ -65,6 +63,8 @@ Fix: combine Target SoC with **Import Limit = 0**. With no grid import allowed, 
 | Import Limit | 0W | Prevents grid import when Target SoC is hit |
 
 Four settings, configured once. No automation platform required.
+
+> ⚠️ **Important:** If you add new schedules or modify existing ones in the FoxESS app after setting advanced parameters in this app, the advanced settings may be lost on the inverter's schedule. Always check back in this app to confirm parameter changes after you have created new, or modified existing schedules.
 
 ---
 
