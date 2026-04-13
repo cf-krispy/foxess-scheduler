@@ -86,7 +86,7 @@ Click the button below. Cloudflare will ask you to log in, connect your GitHub a
 ### What happens when you click Deploy
 
 1. Log in to Cloudflare (or create a free account)
-2. Cloudflare redirects you to GitHub and asks you to install the **Cloudflare Workers and Pages** GitHub App — this gives Cloudflare permission to copy the software respository into your own account and trigger automatic builds on new commits. Click **Install & Authorize** when prompted. Check the `Create Private Git repositoy` box to keep your copy private.
+2. Cloudflare redirects you to GitHub and asks you to install the **Cloudflare Workers and Pages** GitHub App — this gives Cloudflare permission to copy the software respository into your own account and trigger automatic builds on new commits. Click **Install & Authorize** when prompted. Check the `Create Private Git repository` box to keep your copy private.
 3. Cloudflare copies this repository into your GitHub account
 4. The app is built and deployed to a URL like `https://foxess-scheduler.<your-subdomain>.workers.dev`
 
